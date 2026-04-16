@@ -36,7 +36,10 @@ pub fn main() !void {
             try printUsage();
             return error.InvalidArguments;
         }
-        try installPackage(allocator, args[2]);
+        installPackage(allocator, args[2]) catch |err| switch (err) {
+            error.UnsupportedBuildSystem => return,
+            else => return err,
+        };
         return;
     }
 
@@ -102,6 +105,7 @@ fn installPackage(allocator: Allocator, package_name: []const u8) !void {
     defer allocator.free(repo_cache_dir);
 
     try cloneOrUpdateRepo(allocator, repo_url, repo_cache_dir);
+    try ensureZigProject(allocator, repo_cache_dir, package_name);
 
     const required_zig = try detectRequiredZigVersion(allocator, repo_cache_dir);
     defer allocator.free(required_zig);
@@ -291,13 +295,47 @@ fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
 }
 
 fn packageRefFromUrl(url: []const u8) !PackageRef {
-    var parts = std.mem.tokenizeScalar(u8, url, '/');
-    _ = parts.next();
+    const trimmed = std.mem.trim(u8, url, "/");
+    var parts = std.mem.tokenizeScalar(u8, trimmed, '/');
     const packages_segment = parts.next() orelse return error.InvalidPackageUrl;
     const owner = parts.next() orelse return error.InvalidPackageUrl;
     const repo = parts.next() orelse return error.InvalidPackageUrl;
     if (!std.mem.eql(u8, packages_segment, "packages")) return error.InvalidPackageUrl;
     return .{ .owner = owner, .repo = repo };
+}
+
+fn ensureZigProject(allocator: Allocator, repo_dir: []const u8, package_name: []const u8) !void {
+    const build_zig = try std.fs.path.join(allocator, &.{ repo_dir, "build.zig" });
+    defer allocator.free(build_zig);
+    if (std.fs.accessAbsolute(build_zig, .{})) |_| return else |_| {}
+
+    const cargo_toml = try std.fs.path.join(allocator, &.{ repo_dir, "Cargo.toml" });
+    defer allocator.free(cargo_toml);
+    if (std.fs.accessAbsolute(cargo_toml, .{})) |_| {
+        std.debug.print(
+            \\package `{s}` is listed in the registry, but this repository is not installable with `zig build`.
+            \\reason: found `Cargo.toml` and no `build.zig` in:
+            \\  {s}
+            \\
+            \\This usually means the package is built with a different toolchain.
+            \\Try searching for a more suitable Zig-native package for your goal:
+            \\  zub search {s}
+            \\
+        , .{ package_name, repo_dir, package_name });
+        return error.UnsupportedBuildSystem;
+    } else |_| {}
+
+    std.debug.print(
+        \\package `{s}` is listed in the registry, but it cannot be installed by `zub`.
+        \\reason: missing `build.zig` in:
+        \\  {s}
+        \\
+        \\`zub` currently installs packages that can be built with `zig build`.
+        \\Try searching for a different package:
+        \\  zub search {s}
+        \\
+    , .{ package_name, repo_dir, package_name });
+    return error.UnsupportedBuildSystem;
 }
 
 fn cloneOrUpdateRepo(allocator: Allocator, repo_url: []const u8, repo_dir: []const u8) !void {
