@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>zub | Install Zig Binaries from the Registry</title>
+  <meta name="description" content="zub is a Zig-native installer for Zig binaries. Install zvm, resolve the required Zig version, build packages from the registry, and install them into ~/.local/bin.">
+  <style>
+    :root {
+      --bg: #f4efe5;
+      --bg-soft: #fbf7f0;
+      --card: rgba(255, 252, 246, 0.86);
+      --text: #1f241c;
+      --muted: #5e6458;
+      --line: rgba(31, 36, 28, 0.12);
+      --accent: #0f766e;
+      --accent-strong: #115e59;
+      --accent-soft: #d7f3ee;
+      --warm: #c26a2d;
+      --shadow: 0 20px 60px rgba(45, 37, 22, 0.12);
+      --radius: 24px;
+      --mono: "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+      --sans: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --max: 1180px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.16), transparent 30%),
+        radial-gradient(circle at top right, rgba(194, 106, 45, 0.14), transparent 28%),
+        linear-gradient(180deg, #f9f4ea 0%, #f4efe5 42%, #efe9dd 100%);
+      line-height: 1.6;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .shell {
+      width: min(calc(100% - 32px), var(--max));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      padding: 24px 0 0;
+    }
+
+    .topbar__inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 14px 18px;
+      background: rgba(255, 255, 255, 0.48);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 999px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 30px rgba(36, 31, 20, 0.06);
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .brand__mark {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--warm));
+      color: white;
+      font-size: 1.1rem;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .hero {
+      padding: 64px 0 36px;
+    }
+
+    .hero__grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 28px;
+      align-items: stretch;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.7);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero__main {
+      padding: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero__main::after {
+      content: "";
+      position: absolute;
+      inset: auto -60px -90px auto;
+      width: 240px;
+      height: 240px;
+      background: radial-gradient(circle, rgba(15, 118, 110, 0.18), transparent 68%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      line-height: 1.05;
+    }
+
+    h1 {
+      margin-top: 20px;
+      font-size: clamp(3rem, 6vw, 5.8rem);
+      letter-spacing: -0.05em;
+    }
+
+    .lead {
+      margin: 18px 0 0;
+      max-width: 760px;
+      font-size: 1.1rem;
+      color: var(--muted);
+    }
+
+    .hero__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 28px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 52px;
+      padding: 0 22px;
+      border-radius: 16px;
+      border: 1px solid transparent;
+      font-weight: 700;
+      transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+    }
+
+    .button--primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #fff;
+      box-shadow: 0 12px 30px rgba(17, 94, 89, 0.24);
+    }
+
+    .button--ghost {
+      background: rgba(255,255,255,0.6);
+      border-color: var(--line);
+      color: var(--text);
+    }
+
+    .hero__side {
+      padding: 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      justify-content: space-between;
+    }
+
+    .mini-card {
+      padding: 18px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.62);
+      border: 1px solid rgba(255,255,255,0.65);
+    }
+
+    .mini-card h3 {
+      font-size: 1rem;
+      margin-bottom: 8px;
+    }
+
+    .mini-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.96rem;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .stat {
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(15, 118, 110, 0.08);
+      border: 1px solid rgba(15, 118, 110, 0.12);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.35rem;
+      letter-spacing: -0.03em;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .section {
+      padding: 18px 0 34px;
+    }
+
+    .section__header {
+      margin-bottom: 18px;
+    }
+
+    .section__header p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      max-width: 780px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .card {
+      padding: 24px;
+      min-height: 100%;
+    }
+
+    .card__number {
+      display: inline-grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: rgba(194, 106, 45, 0.12);
+      color: var(--warm);
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+
+    .card p {
+      color: var(--muted);
+      margin: 12px 0 0;
+    }
+
+    .install {
+      display: grid;
+      grid-template-columns: 1.08fr 0.92fr;
+      gap: 18px;
+    }
+
+    .command-card,
+    .info-card,
+    .faq-card {
+      padding: 26px;
+    }
+
+    .codebox {
+      position: relative;
+      margin-top: 18px;
+      border-radius: 20px;
+      overflow: hidden;
+      background: #181b18;
+      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+
+    .codebox__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 16px;
+      color: #cfd8ca;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-size: 0.9rem;
+    }
+
+    .dots {
+      display: inline-flex;
+      gap: 6px;
+    }
+
+    .dots span {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: block;
+    }
+
+    .dots span:nth-child(1) { background: #ff5f57; }
+    .dots span:nth-child(2) { background: #febc2e; }
+    .dots span:nth-child(3) { background: #28c840; }
+
+    pre {
+      margin: 0;
+      padding: 22px;
+      overflow: auto;
+      color: #eff6ed;
+      font-family: var(--mono);
+      font-size: 0.98rem;
+      line-height: 1.65;
+    }
+
+    code {
+      font-family: var(--mono);
+    }
+
+    .copy {
+      appearance: none;
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font: inherit;
+      font-weight: 700;
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .copy[data-copied="true"] {
+      background: rgba(15, 118, 110, 0.95);
+    }
+
+    .info-list {
+      display: grid;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .info-row {
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.58);
+      border: 1px solid var(--line);
+    }
+
+    .info-row strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .info-row span {
+      color: var(--muted);
+      word-break: break-word;
+    }
+
+    .usage {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .faq {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .faq-card p {
+      margin: 12px 0 0;
+      color: var(--muted);
+    }
+
+    .footer {
+      padding: 16px 0 42px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .footer__inner {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      border-top: 1px solid var(--line);
+      padding-top: 20px;
+    }
+
+    @media (max-width: 980px) {
+      .hero__grid,
+      .cards,
+      .install,
+      .usage,
+      .faq {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .topbar__inner {
+        border-radius: 26px;
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .hero {
+        padding-top: 36px;
+      }
+
+      .hero__main,
+      .hero__side,
+      .card,
+      .command-card,
+      .info-card,
+      .faq-card {
+        padding: 22px;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: clamp(2.6rem, 16vw, 4.3rem);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar shell">
+    <div class="topbar__inner">
+      <a class="brand" href="#">
+        <span class="brand__mark">ZU</span>
+        <span>zub</span>
+      </a>
+      <nav class="nav">
+        <a href="#install">Install</a>
+        <a href="#workflow">Workflow</a>
+        <a href="#usage">Usage</a>
+        <a href="https://zub.javanile.org/packages.json">Registry JSON</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div class="hero__grid">
+        <article class="panel hero__main">
+          <span class="eyebrow">Zig-native binary installer</span>
+          <h1>Build the right binary with the right Zig version.</h1>
+          <p class="lead">
+            <strong>zub</strong> installs Zig binaries from the ZUB registry, provisions <code>zvm</code>,
+            detects the required Zig toolchain, builds the package, and places the final executable in
+            <code>$HOME/.local/bin</code>.
+          </p>
+          <div class="hero__actions">
+            <a class="button button--primary" href="#install">Install zub</a>
+            <a class="button button--ghost" href="#usage">See how it works</a>
+          </div>
+        </article>
+
+        <aside class="panel hero__side">
+          <div class="mini-card">
+            <h3>Registry-driven</h3>
+            <p>Packages are resolved from <code>https://zub.javanile.org/packages.json</code> and mapped to their source repository automatically.</p>
+          </div>
+          <div class="mini-card">
+            <h3>Toolchain-aware</h3>
+            <p><code>zub</code> reads <code>build.zig.zon</code>, picks the required Zig version, and delegates installation to <code>zvm</code>.</p>
+          </div>
+          <div class="stats">
+            <div class="stat">
+              <strong>1</strong>
+              <span>bootstrap command</span>
+            </div>
+            <div class="stat">
+              <strong>0</strong>
+              <span>manual Zig switching</span>
+            </div>
+            <div class="stat">
+              <strong>100%</strong>
+              <span>single-file docs</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="workflow">
+      <div class="section__header">
+        <h2>What zub does</h2>
+        <p>The product is intentionally narrow: install a binary from the registry, make sure the required Zig version exists, build it, and drop the executable where your shell already expects user binaries.</p>
+      </div>
+      <div class="cards">
+        <article class="panel card">
+          <div class="card__number">01</div>
+          <h3>Read the registry</h3>
+          <p><code>zub</code> downloads the package list from the public registry and resolves the package entry by name.</p>
+        </article>
+        <article class="panel card">
+          <div class="card__number">02</div>
+          <h3>Prepare the toolchain</h3>
+          <p>It ensures <code>zvm</code> is available, detects the package Zig version, and installs that version when needed.</p>
+        </article>
+        <article class="panel card">
+          <div class="card__number">03</div>
+          <h3>Build and install</h3>
+          <p>The package is built from source and the resulting binary is copied into <code>$HOME/.local/bin</code>.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="install">
+      <div class="section__header">
+        <h2>Install zub</h2>
+        <p>The intended bootstrap flow is a single shell command. The installer provisions <code>zvm</code>, installs a bootstrap Zig version, builds <code>zub</code>, and installs it locally.</p>
+      </div>
+      <div class="install">
+        <article class="panel command-card">
+          <h3>Bootstrap command</h3>
+          <div class="codebox">
+            <div class="codebox__head">
+              <span class="dots"><span></span><span></span><span></span></span>
+              <button class="copy" type="button" data-copy="curl -fsSL https://yafb.net/zub.zig/install.sh | bash">Copy</button>
+            </div>
+            <pre><code>curl -fsSL https://yafb.net/zub.zig/install.sh | bash</code></pre>
+          </div>
+        </article>
+
+        <aside class="panel info-card">
+          <h3>Default install targets</h3>
+          <div class="info-list">
+            <div class="info-row">
+              <strong>zub binary</strong>
+              <span><code>$HOME/.local/bin/zub</code></span>
+            </div>
+            <div class="info-row">
+              <strong>source cache</strong>
+              <span><code>$HOME/.cache/zub/src</code></span>
+            </div>
+            <div class="info-row">
+              <strong>zvm home</strong>
+              <span><code>$HOME/.zvm</code></span>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="usage">
+      <div class="section__header">
+        <h2>Use zub</h2>
+        <p>Once installed, package installation is intentionally small. Ask for a binary by name and let <code>zub</code> do the registry lookup, toolchain selection, build, and final install.</p>
+      </div>
+      <div class="usage">
+        <article class="panel command-card">
+          <h3>Install a package</h3>
+          <div class="codebox">
+            <div class="codebox__head">
+              <span class="dots"><span></span><span></span><span></span></span>
+              <button class="copy" type="button" data-copy="zub install pbm">Copy</button>
+            </div>
+            <pre><code>zub install pbm</code></pre>
+          </div>
+        </article>
+
+        <article class="panel command-card">
+          <h3>High-level execution flow</h3>
+          <div class="codebox">
+            <div class="codebox__head">
+              <span class="dots"><span></span><span></span><span></span></span>
+              <span>internal flow</span>
+            </div>
+            <pre><code>registry lookup
+repository resolution
+toolchain detection
+zvm install &lt;zig-version&gt;
+zvm run &lt;zig-version&gt; build
+copy executable to ~/.local/bin</code></pre>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section__header">
+        <h2>Operational notes</h2>
+        <p>The current implementation keeps the contract simple and explicit. It focuses on reproducible source builds of Zig binaries with version-aware toolchain provisioning.</p>
+      </div>
+      <div class="faq">
+        <article class="panel faq-card">
+          <h3>How is the repository resolved?</h3>
+          <p>The current package URL contract assumes registry entries use the pattern <code>/packages/&lt;owner&gt;/&lt;repo&gt;/</code>, which maps directly to a GitHub repository.</p>
+        </article>
+        <article class="panel faq-card">
+          <h3>What if the package does not declare a Zig version?</h3>
+          <p>If <code>minimum_zig_version</code> is not present in <code>build.zig.zon</code>, <code>zub</code> falls back to <code>master</code>.</p>
+        </article>
+        <article class="panel faq-card">
+          <h3>Where does the binary go?</h3>
+          <p>The installed executable is copied into <code>$HOME/.local/bin</code>. Make sure that directory is present in your shell <code>PATH</code>.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer shell">
+    <div class="footer__inner">
+      <span>zub is a Zig-native installer for Zig binaries distributed through the ZUB registry.</span>
+      <a href="https://zub.javanile.org/packages.json">Browse the registry index</a>
+    </div>
+  </footer>
+
+  <script>
+    document.querySelectorAll("[data-copy]").forEach(function(button) {
+      button.addEventListener("click", function() {
+        var value = button.getAttribute("data-copy");
+        navigator.clipboard.writeText(value).then(function() {
+          button.setAttribute("data-copied", "true");
+          button.textContent = "Copied";
+          window.setTimeout(function() {
+            button.removeAttribute("data-copied");
+            button.textContent = "Copy";
+          }, 1600);
+        });
+      });
+    });
+  </script>
+</body>
+</html>
