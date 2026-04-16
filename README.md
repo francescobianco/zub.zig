@@ -22,6 +22,8 @@ The intended bootstrap flow is:
 curl -fsSL https://yafb.net/zub.zig/install.sh | bash
 ```
 
+The published installer is stored at `docs/install.sh` in this repository.
+
 The installer:
 
 - installs `zvm` if it is missing
