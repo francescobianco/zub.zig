@@ -4,12 +4,19 @@ const Allocator = std.mem.Allocator;
 const REGISTRY_URL = "https://zub.javanile.org/packages.json";
 const DEFAULT_ZIG_VERSION = "master";
 
+const ZIG_VERSION_MAPPING = struct {
+    pub fn map(version: []const u8) ?[]const u8 {
+        return if (std.mem.eql(u8, version, "0.15.0")) "0.15.1" else null;
+    }
+};
+
 const Package = struct {
     title: []const u8,
     description: ?[]const u8 = null,
     url: []const u8,
     keywords: ?[]const []const u8 = null,
     categories: ?[]const []const u8 = null,
+    has_binary: bool = false,
 };
 
 const PackageRef = struct {
@@ -38,6 +45,7 @@ pub fn main() !void {
         }
         installPackage(allocator, args[2]) catch |err| switch (err) {
             error.UnsupportedBuildSystem => return,
+            error.PackageNotInstallable => return,
             else => return err,
         };
         return;
@@ -97,6 +105,18 @@ fn installPackage(allocator: Allocator, package_name: []const u8) !void {
         return error.PackageNotFound;
     };
 
+    if (!pkg.has_binary) {
+        std.debug.print(
+            \\package `{s}` has no installable binary.
+            \\This package cannot be installed with `zub install`.
+            \\
+            \\To search for packages with installable binaries, run:
+            \\  zub search {s}
+            \\
+        , .{ package_name, package_name });
+        return error.PackageNotInstallable;
+    }
+
     const pkg_ref = try packageRefFromUrl(pkg.url);
     const repo_url = try std.fmt.allocPrint(allocator, "https://github.com/{s}/{s}.git", .{ pkg_ref.owner, pkg_ref.repo });
     defer allocator.free(repo_url);
@@ -134,6 +154,7 @@ fn searchPackages(allocator: Allocator, query: []const u8) !void {
     var match_count: usize = 0;
     for (packages) |pkg| {
         if (!packageMatchesQuery(pkg, query)) continue;
+        if (!pkg.has_binary) continue;
         match_count += 1;
 
         std.debug.print("{s}\n", .{pkg.title});
@@ -218,6 +239,7 @@ fn parsePackages(allocator: Allocator, json_bytes: []const u8) ![]Package {
         url: []const u8,
         keywords: ?[]const ?[]const u8 = null,
         categories: ?[]const []const u8 = null,
+        has_binary: bool = false,
     };
 
     var parsed = try std.json.parseFromSlice([]Parsed, allocator, json_bytes, .{});
@@ -253,6 +275,7 @@ fn parsePackages(allocator: Allocator, json_bytes: []const u8) ![]Package {
             .url = try allocator.dupe(u8, pkg.url),
             .keywords = keywords_owned,
             .categories = categories_owned,
+            .has_binary = pkg.has_binary,
         };
     }
     return packages;
@@ -365,11 +388,14 @@ fn detectRequiredZigVersion(allocator: Allocator, repo_dir: []const u8) ![]u8 {
     };
     defer allocator.free(contents);
 
-    if (extractMinimumZigVersion(contents)) |version| {
-        return allocator.dupe(u8, version);
+    var version = extractMinimumZigVersion(contents) orelse DEFAULT_ZIG_VERSION;
+
+    if (ZIG_VERSION_MAPPING.map(version)) |mapped| {
+        std.debug.print("note: Zig {s} not available, using {s} instead\n", .{ version, mapped });
+        return allocator.dupe(u8, mapped);
     }
 
-    return allocator.dupe(u8, DEFAULT_ZIG_VERSION);
+    return allocator.dupe(u8, version);
 }
 
 fn extractMinimumZigVersion(contents: []const u8) ?[]const u8 {
