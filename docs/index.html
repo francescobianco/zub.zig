@@ -7,19 +7,21 @@
   <meta name="description" content="zub is a Zig-native installer for Zig binaries. Install zvm, resolve the required Zig version, build packages from the registry, and install them into ~/.local/bin.">
   <style>
     :root {
-      --bg: #f4efe5;
-      --bg-soft: #fbf7f0;
-      --card: rgba(255, 252, 246, 0.86);
-      --text: #1f241c;
-      --muted: #5e6458;
-      --line: rgba(31, 36, 28, 0.12);
-      --accent: #0f766e;
-      --accent-strong: #115e59;
-      --accent-soft: #d7f3ee;
-      --warm: #c26a2d;
-      --shadow: 0 20px 60px rgba(45, 37, 22, 0.12);
+      --bg: #071018;
+      --bg-2: #0b1521;
+      --bg-3: #101b29;
+      --panel: rgba(10, 18, 29, 0.82);
+      --panel-strong: rgba(13, 24, 38, 0.96);
+      --text: #e7f7ff;
+      --muted: #89a3b7;
+      --line: rgba(120, 178, 214, 0.18);
+      --cyan: #5ef2ff;
+      --green: #86ff9b;
+      --amber: #ffb347;
+      --pink: #ff7de8;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
       --radius: 24px;
-      --mono: "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+      --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
       --sans: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
       --max: 1180px;
     }
@@ -34,18 +36,38 @@
 
     body {
       margin: 0;
-      font-family: var(--sans);
       color: var(--text);
-      background:
-        radial-gradient(circle at top left, rgba(15, 118, 110, 0.16), transparent 30%),
-        radial-gradient(circle at top right, rgba(194, 106, 45, 0.14), transparent 28%),
-        linear-gradient(180deg, #f9f4ea 0%, #f4efe5 42%, #efe9dd 100%);
+      font-family: var(--sans);
       line-height: 1.6;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(94, 242, 255, 0.14), transparent 24%),
+        radial-gradient(circle at 85% 12%, rgba(255, 125, 232, 0.12), transparent 22%),
+        radial-gradient(circle at 50% 100%, rgba(134, 255, 155, 0.08), transparent 28%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 48%, #050b12 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(94, 242, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(94, 242, 255, 0.04) 1px, transparent 1px);
+      background-size: 28px 28px;
+      mask-image: radial-gradient(circle at center, black 55%, transparent 100%);
+      opacity: 0.35;
     }
 
     a {
       color: inherit;
       text-decoration: none;
+    }
+
+    code, pre {
+      font-family: var(--mono);
     }
 
     .shell {
@@ -62,74 +84,102 @@
       align-items: center;
       justify-content: space-between;
       gap: 24px;
-      padding: 14px 18px;
-      background: rgba(255, 255, 255, 0.48);
-      border: 1px solid rgba(255, 255, 255, 0.4);
+      padding: 16px 20px;
+      background: rgba(7, 16, 24, 0.7);
+      border: 1px solid var(--line);
       border-radius: 999px;
       backdrop-filter: blur(12px);
-      box-shadow: 0 10px 30px rgba(36, 31, 20, 0.06);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
     }
 
     .brand {
       display: inline-flex;
       align-items: center;
-      gap: 12px;
-      font-weight: 800;
-      letter-spacing: 0.02em;
+      gap: 14px;
+      font-family: var(--mono);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
     .brand__mark {
-      width: 42px;
-      height: 42px;
+      width: 44px;
+      height: 44px;
       display: grid;
       place-items: center;
       border-radius: 14px;
-      background: linear-gradient(135deg, var(--accent), var(--warm));
-      color: white;
-      font-size: 1.1rem;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);
+      color: #071018;
+      background:
+        linear-gradient(135deg, var(--cyan), var(--green));
+      box-shadow:
+        0 0 26px rgba(94, 242, 255, 0.28),
+        inset 0 1px 0 rgba(255,255,255,0.35);
     }
 
     .nav {
       display: flex;
       flex-wrap: wrap;
-      gap: 18px;
+      gap: 16px;
       color: var(--muted);
       font-size: 0.95rem;
     }
 
+    .nav a {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      transition: 140ms ease;
+    }
+
+    .nav a:hover {
+      border-color: var(--line);
+      color: var(--text);
+      background: rgba(94, 242, 255, 0.06);
+    }
+
     .hero {
-      padding: 64px 0 36px;
+      padding: 58px 0 36px;
     }
 
     .hero__grid {
       display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
-      gap: 28px;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 24px;
       align-items: stretch;
     }
 
     .panel {
-      background: var(--card);
-      border: 1px solid rgba(255,255,255,0.7);
+      background: var(--panel);
+      border: 1px solid var(--line);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(12px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent 20%);
     }
 
     .hero__main {
-      padding: 40px;
-      position: relative;
-      overflow: hidden;
+      padding: 42px;
     }
 
     .hero__main::after {
       content: "";
       position: absolute;
-      inset: auto -60px -90px auto;
-      width: 240px;
-      height: 240px;
-      background: radial-gradient(circle, rgba(15, 118, 110, 0.18), transparent 68%);
+      right: -80px;
+      top: 30px;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(94, 242, 255, 0.18), transparent 68%);
+      filter: blur(10px);
       pointer-events: none;
     }
 
@@ -137,32 +187,50 @@
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      padding: 8px 14px;
+      padding: 9px 14px;
       border-radius: 999px;
-      background: var(--accent-soft);
-      color: var(--accent-strong);
+      border: 1px solid rgba(94, 242, 255, 0.18);
+      background: rgba(94, 242, 255, 0.08);
+      color: var(--cyan);
+      font-family: var(--mono);
       font-size: 0.82rem;
       font-weight: 700;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
     }
 
     h1, h2, h3 {
       margin: 0;
-      line-height: 1.05;
+      line-height: 1.04;
     }
 
     h1 {
-      margin-top: 20px;
-      font-size: clamp(3rem, 6vw, 5.8rem);
-      letter-spacing: -0.05em;
+      margin-top: 18px;
+      font-size: clamp(3rem, 7vw, 6rem);
+      letter-spacing: -0.06em;
+      max-width: 10ch;
+      text-wrap: balance;
     }
 
     .lead {
-      margin: 18px 0 0;
       max-width: 760px;
-      font-size: 1.1rem;
+      margin: 20px 0 0;
+      font-size: 1.08rem;
       color: var(--muted);
+    }
+
+    .terminal-strip {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 26px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(0, 0, 0, 0.24);
+      border: 1px solid rgba(134, 255, 155, 0.18);
+      color: var(--green);
+      font-family: var(--mono);
+      font-size: 0.92rem;
     }
 
     .hero__actions {
@@ -182,7 +250,7 @@
       border-radius: 16px;
       border: 1px solid transparent;
       font-weight: 700;
-      transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+      transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease;
     }
 
     .button:hover {
@@ -190,30 +258,40 @@
     }
 
     .button--primary {
-      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-      color: #fff;
-      box-shadow: 0 12px 30px rgba(17, 94, 89, 0.24);
+      background: linear-gradient(135deg, rgba(94, 242, 255, 0.16), rgba(134, 255, 155, 0.16));
+      border-color: rgba(94, 242, 255, 0.34);
+      color: var(--text);
+      box-shadow: 0 14px 32px rgba(94, 242, 255, 0.14);
     }
 
     .button--ghost {
-      background: rgba(255,255,255,0.6);
+      background: rgba(255,255,255,0.03);
       border-color: var(--line);
+      color: var(--muted);
+    }
+
+    .button--ghost:hover {
       color: var(--text);
+      background: rgba(255,255,255,0.05);
     }
 
     .hero__side {
-      padding: 26px;
+      padding: 24px;
       display: flex;
       flex-direction: column;
-      gap: 18px;
-      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .mini-card,
+    .stat,
+    .info-row {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--line);
+      border-radius: 18px;
     }
 
     .mini-card {
       padding: 18px;
-      border-radius: 18px;
-      background: rgba(255,255,255,0.62);
-      border: 1px solid rgba(255,255,255,0.65);
     }
 
     .mini-card h3 {
@@ -221,10 +299,13 @@
       margin-bottom: 8px;
     }
 
-    .mini-card p {
-      margin: 0;
+    .mini-card p,
+    .stat span,
+    .section__header p,
+    .card p,
+    .info-row span,
+    .faq-card p {
       color: var(--muted);
-      font-size: 0.96rem;
     }
 
     .stats {
@@ -235,20 +316,14 @@
 
     .stat {
       padding: 14px;
-      border-radius: 16px;
-      background: rgba(15, 118, 110, 0.08);
-      border: 1px solid rgba(15, 118, 110, 0.12);
     }
 
     .stat strong {
       display: block;
-      font-size: 1.35rem;
-      letter-spacing: -0.03em;
-    }
-
-    .stat span {
-      color: var(--muted);
-      font-size: 0.9rem;
+      margin-bottom: 4px;
+      color: var(--green);
+      font-size: 1.4rem;
+      font-family: var(--mono);
     }
 
     .section {
@@ -259,38 +334,42 @@
       margin-bottom: 18px;
     }
 
+    .section__header h2 {
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      letter-spacing: -0.05em;
+    }
+
     .section__header p {
-      margin: 10px 0 0;
-      color: var(--muted);
+      margin: 12px 0 0;
       max-width: 780px;
     }
 
-    .cards {
+    .cards,
+    .faq {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 18px;
     }
 
-    .card {
+    .card,
+    .command-card,
+    .info-card,
+    .faq-card {
       padding: 24px;
-      min-height: 100%;
     }
 
     .card__number {
       display: inline-grid;
       place-items: center;
-      width: 38px;
-      height: 38px;
+      width: 40px;
+      height: 40px;
       border-radius: 12px;
-      background: rgba(194, 106, 45, 0.12);
-      color: var(--warm);
-      font-weight: 800;
       margin-bottom: 16px;
-    }
-
-    .card p {
-      color: var(--muted);
-      margin: 12px 0 0;
+      background: rgba(255, 179, 71, 0.1);
+      border: 1px solid rgba(255, 179, 71, 0.24);
+      color: var(--amber);
+      font-family: var(--mono);
+      font-weight: 700;
     }
 
     .install {
@@ -299,19 +378,12 @@
       gap: 18px;
     }
 
-    .command-card,
-    .info-card,
-    .faq-card {
-      padding: 26px;
-    }
-
     .codebox {
-      position: relative;
       margin-top: 18px;
       border-radius: 20px;
       overflow: hidden;
-      background: #181b18;
-      border: 1px solid rgba(255,255,255,0.06);
+      background: linear-gradient(180deg, #0b1119, #060b12);
+      border: 1px solid rgba(94, 242, 255, 0.14);
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
     }
 
@@ -321,10 +393,11 @@
       justify-content: space-between;
       gap: 16px;
       padding: 14px 16px;
-      color: #cfd8ca;
+      color: #acc7d7;
       background: rgba(255,255,255,0.03);
       border-bottom: 1px solid rgba(255,255,255,0.06);
       font-size: 0.9rem;
+      font-family: var(--mono);
     }
 
     .dots {
@@ -347,30 +420,27 @@
       margin: 0;
       padding: 22px;
       overflow: auto;
-      color: #eff6ed;
-      font-family: var(--mono);
-      font-size: 0.98rem;
-      line-height: 1.65;
-    }
-
-    code {
-      font-family: var(--mono);
+      color: #eefbff;
+      font-size: 0.97rem;
+      line-height: 1.7;
     }
 
     .copy {
       appearance: none;
-      border: 0;
+      border: 1px solid rgba(94, 242, 255, 0.18);
       border-radius: 12px;
-      padding: 10px 14px;
+      padding: 9px 14px;
       font: inherit;
       font-weight: 700;
-      background: rgba(255,255,255,0.08);
-      color: #fff;
+      color: var(--cyan);
+      background: rgba(94, 242, 255, 0.08);
       cursor: pointer;
     }
 
     .copy[data-copied="true"] {
-      background: rgba(15, 118, 110, 0.95);
+      color: #071018;
+      background: var(--green);
+      border-color: transparent;
     }
 
     .info-list {
@@ -381,19 +451,13 @@
 
     .info-row {
       padding: 16px 18px;
-      border-radius: 18px;
-      background: rgba(255,255,255,0.58);
-      border: 1px solid var(--line);
     }
 
     .info-row strong {
       display: block;
       margin-bottom: 4px;
-    }
-
-    .info-row span {
-      color: var(--muted);
-      word-break: break-word;
+      color: var(--cyan);
+      font-family: var(--mono);
     }
 
     .usage {
@@ -402,30 +466,32 @@
       gap: 18px;
     }
 
-    .faq {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 18px;
-    }
-
     .faq-card p {
       margin: 12px 0 0;
-      color: var(--muted);
     }
 
     .footer {
-      padding: 16px 0 42px;
+      padding: 14px 0 40px;
       color: var(--muted);
       font-size: 0.95rem;
     }
 
     .footer__inner {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       gap: 16px;
-      flex-wrap: wrap;
       border-top: 1px solid var(--line);
       padding-top: 20px;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 rgba(94, 242, 255, 0.0); }
+      50% { box-shadow: 0 0 26px rgba(94, 242, 255, 0.12); }
+    }
+
+    .panel--glow {
+      animation: pulse 4.6s ease-in-out infinite;
     }
 
     @media (max-width: 980px) {
@@ -436,17 +502,13 @@
       .faq {
         grid-template-columns: 1fr;
       }
-
-      .stats {
-        grid-template-columns: 1fr 1fr 1fr;
-      }
     }
 
     @media (max-width: 720px) {
       .topbar__inner {
-        border-radius: 26px;
-        align-items: flex-start;
         flex-direction: column;
+        align-items: flex-start;
+        border-radius: 28px;
       }
 
       .hero {
@@ -465,10 +527,6 @@
       .stats {
         grid-template-columns: 1fr;
       }
-
-      h1 {
-        font-size: clamp(2.6rem, 16vw, 4.3rem);
-      }
     }
   </style>
 </head>
@@ -477,11 +535,11 @@
     <div class="topbar__inner">
       <a class="brand" href="#">
         <span class="brand__mark">ZU</span>
-        <span>zub</span>
+        <span>zub.runtime</span>
       </a>
       <nav class="nav">
         <a href="#install">Install</a>
-        <a href="#workflow">Workflow</a>
+        <a href="#workflow">Flow</a>
         <a href="#usage">Usage</a>
         <a href="https://zub.javanile.org/packages.json">Registry JSON</a>
       </nav>
@@ -491,41 +549,43 @@
   <main class="shell">
     <section class="hero">
       <div class="hero__grid">
-        <article class="panel hero__main">
-          <span class="eyebrow">Zig-native binary installer</span>
-          <h1>Build the right binary with the right Zig version.</h1>
+        <article class="panel panel--glow hero__main">
+          <span class="eyebrow">Zig-native registry bootstrapper</span>
+          <h1>Install binaries like a toolchain engineer.</h1>
           <p class="lead">
-            <strong>zub</strong> installs Zig binaries from the ZUB registry, provisions <code>zvm</code>,
-            detects the required Zig toolchain, builds the package, and places the final executable in
-            <code>$HOME/.local/bin</code>.
+            <strong>zub</strong> is a dark little utility with a very specific job:
+            fetch a package from the ZUB registry, detect the Zig version it needs,
+            install that toolchain through <code>zvm</code>, build it, and drop the final
+            executable into <code>$HOME/.local/bin</code>.
           </p>
+          <div class="terminal-strip">$ zub install pbm <span style="color:var(--muted)"># resolve, provision, build, install</span></div>
           <div class="hero__actions">
-            <a class="button button--primary" href="#install">Install zub</a>
-            <a class="button button--ghost" href="#usage">See how it works</a>
+            <a class="button button--primary" href="#install">Bootstrap zub</a>
+            <a class="button button--ghost" href="#usage">Inspect the flow</a>
           </div>
         </article>
 
         <aside class="panel hero__side">
           <div class="mini-card">
-            <h3>Registry-driven</h3>
-            <p>Packages are resolved from <code>https://zub.javanile.org/packages.json</code> and mapped to their source repository automatically.</p>
+            <h3>Registry-first</h3>
+            <p>Package discovery starts from a public JSON index and turns package metadata into a reproducible build flow.</p>
           </div>
           <div class="mini-card">
-            <h3>Toolchain-aware</h3>
-            <p><code>zub</code> reads <code>build.zig.zon</code>, picks the required Zig version, and delegates installation to <code>zvm</code>.</p>
+            <h3>Version-aware</h3>
+            <p><code>zub</code> reads <code>minimum_zig_version</code> when available and asks <code>zvm</code> for the exact toolchain it needs.</p>
           </div>
           <div class="stats">
             <div class="stat">
-              <strong>1</strong>
+              <strong>1x</strong>
               <span>bootstrap command</span>
             </div>
             <div class="stat">
-              <strong>0</strong>
-              <span>manual Zig switching</span>
+              <strong>0x</strong>
+              <span>manual Zig juggling</span>
             </div>
             <div class="stat">
-              <strong>100%</strong>
-              <span>single-file docs</span>
+              <strong>~/.local/bin</strong>
+              <span>final target</span>
             </div>
           </div>
         </aside>
@@ -534,36 +594,36 @@
 
     <section class="section" id="workflow">
       <div class="section__header">
-        <h2>What zub does</h2>
-        <p>The product is intentionally narrow: install a binary from the registry, make sure the required Zig version exists, build it, and drop the executable where your shell already expects user binaries.</p>
+        <h2>Execution model</h2>
+        <p>This is not a package mirror, not a GUI launcher, and not a vague dev helper. It is a direct pipeline from registry entry to built executable, with the Zig toolchain selected on demand.</p>
       </div>
       <div class="cards">
         <article class="panel card">
           <div class="card__number">01</div>
-          <h3>Read the registry</h3>
-          <p><code>zub</code> downloads the package list from the public registry and resolves the package entry by name.</p>
+          <h3>Resolve package metadata</h3>
+          <p><code>zub</code> downloads the registry index and matches the package name to its repository source.</p>
         </article>
         <article class="panel card">
           <div class="card__number">02</div>
-          <h3>Prepare the toolchain</h3>
-          <p>It ensures <code>zvm</code> is available, detects the package Zig version, and installs that version when needed.</p>
+          <h3>Provision the proper Zig</h3>
+          <p>The package source is inspected for <code>build.zig.zon</code>, then <code>zvm</code> installs the required Zig version if missing.</p>
         </article>
         <article class="panel card">
           <div class="card__number">03</div>
-          <h3>Build and install</h3>
-          <p>The package is built from source and the resulting binary is copied into <code>$HOME/.local/bin</code>.</p>
+          <h3>Build and deploy locally</h3>
+          <p>The package is built from source and the resulting binary is copied into your user-local executable path.</p>
         </article>
       </div>
     </section>
 
     <section class="section" id="install">
       <div class="section__header">
-        <h2>Install zub</h2>
-        <p>The intended bootstrap flow is a single shell command. The installer provisions <code>zvm</code>, installs a bootstrap Zig version, builds <code>zub</code>, and installs it locally.</p>
+        <h2>Bootstrap</h2>
+        <p>The published installer lives at <code>docs/install.sh</code> in the repository and is served publicly from the URL below.</p>
       </div>
       <div class="install">
         <article class="panel command-card">
-          <h3>Bootstrap command</h3>
+          <h3>Install zub</h3>
           <div class="codebox">
             <div class="codebox__head">
               <span class="dots"><span></span><span></span><span></span></span>
@@ -574,10 +634,10 @@
         </article>
 
         <aside class="panel info-card">
-          <h3>Default install targets</h3>
+          <h3>Local layout</h3>
           <div class="info-list">
             <div class="info-row">
-              <strong>zub binary</strong>
+              <strong>zub executable</strong>
               <span><code>$HOME/.local/bin/zub</code></span>
             </div>
             <div class="info-row">
@@ -585,7 +645,7 @@
               <span><code>$HOME/.cache/zub/src</code></span>
             </div>
             <div class="info-row">
-              <strong>zvm home</strong>
+              <strong>zvm toolchain root</strong>
               <span><code>$HOME/.zvm</code></span>
             </div>
           </div>
@@ -595,8 +655,8 @@
 
     <section class="section" id="usage">
       <div class="section__header">
-        <h2>Use zub</h2>
-        <p>Once installed, package installation is intentionally small. Ask for a binary by name and let <code>zub</code> do the registry lookup, toolchain selection, build, and final install.</p>
+        <h2>Runtime usage</h2>
+        <p>After bootstrap, package install stays intentionally terse. Ask for a binary by name and let the system resolve, fetch, build, and install it.</p>
       </div>
       <div class="usage">
         <article class="panel command-card">
@@ -611,15 +671,15 @@
         </article>
 
         <article class="panel command-card">
-          <h3>High-level execution flow</h3>
+          <h3>Internal flow</h3>
           <div class="codebox">
             <div class="codebox__head">
               <span class="dots"><span></span><span></span><span></span></span>
-              <span>internal flow</span>
+              <span>pipeline.log</span>
             </div>
             <pre><code>registry lookup
 repository resolution
-toolchain detection
+minimum_zig_version detection
 zvm install &lt;zig-version&gt;
 zvm run &lt;zig-version&gt; build
 copy executable to ~/.local/bin</code></pre>
@@ -631,20 +691,20 @@ copy executable to ~/.local/bin</code></pre>
     <section class="section">
       <div class="section__header">
         <h2>Operational notes</h2>
-        <p>The current implementation keeps the contract simple and explicit. It focuses on reproducible source builds of Zig binaries with version-aware toolchain provisioning.</p>
+        <p>The current contract is intentionally strict and transparent: Zig packages in, local binaries out, with a known toolchain path in the middle.</p>
       </div>
       <div class="faq">
         <article class="panel faq-card">
-          <h3>How is the repository resolved?</h3>
-          <p>The current package URL contract assumes registry entries use the pattern <code>/packages/&lt;owner&gt;/&lt;repo&gt;/</code>, which maps directly to a GitHub repository.</p>
+          <h3>Repository resolution</h3>
+          <p>Registry URLs are currently expected to follow the pattern <code>/packages/&lt;owner&gt;/&lt;repo&gt;/</code>, which maps cleanly to a GitHub repository.</p>
         </article>
         <article class="panel faq-card">
-          <h3>What if the package does not declare a Zig version?</h3>
-          <p>If <code>minimum_zig_version</code> is not present in <code>build.zig.zon</code>, <code>zub</code> falls back to <code>master</code>.</p>
+          <h3>Missing Zig metadata</h3>
+          <p>If <code>minimum_zig_version</code> is not declared in <code>build.zig.zon</code>, <code>zub</code> falls back to <code>master</code>.</p>
         </article>
         <article class="panel faq-card">
-          <h3>Where does the binary go?</h3>
-          <p>The installed executable is copied into <code>$HOME/.local/bin</code>. Make sure that directory is present in your shell <code>PATH</code>.</p>
+          <h3>Final install path</h3>
+          <p>The resulting executable is copied into <code>$HOME/.local/bin</code>. Your shell should already include that directory in <code>PATH</code>.</p>
         </article>
       </div>
     </section>
@@ -652,8 +712,8 @@ copy executable to ~/.local/bin</code></pre>
 
   <footer class="footer shell">
     <div class="footer__inner">
-      <span>zub is a Zig-native installer for Zig binaries distributed through the ZUB registry.</span>
-      <a href="https://zub.javanile.org/packages.json">Browse the registry index</a>
+      <span>zub is a Zig-native installer for binaries distributed through the ZUB registry.</span>
+      <a href="https://zub.javanile.org/packages.json">Read the registry index</a>
     </div>
   </footer>
 

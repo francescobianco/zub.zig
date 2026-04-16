@@ -39,6 +39,12 @@ Install a package from the registry:
 zub install pbm
 ```
 
+Search packages in the registry:
+
+```bash
+zub search http
+```
+
 What `zub` does under the hood:
 
 1. downloads the package index from `https://zub.javanile.org/packages.json`

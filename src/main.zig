@@ -40,6 +40,16 @@ pub fn main() !void {
         return;
     }
 
+    if (std.mem.eql(u8, args[1], "search")) {
+        if (args.len < 3) {
+            std.log.err("missing search query", .{});
+            try printUsage();
+            return error.InvalidArguments;
+        }
+        try searchPackages(allocator, args[2]);
+        return;
+    }
+
     if (std.mem.eql(u8, args[1], "--help") or std.mem.eql(u8, args[1], "-h") or std.mem.eql(u8, args[1], "help")) {
         try printUsage();
         return;
@@ -56,6 +66,7 @@ fn printUsage() !void {
         \\
         \\Usage:
         \\  zub install <package>
+        \\  zub search <query>
         \\
         \\Registry:
         \\  {s}
@@ -75,26 +86,8 @@ fn installPackage(allocator: Allocator, package_name: []const u8) !void {
     defer allocator.free(cache_src_dir);
     try ensureDirAbsolute(cache_src_dir);
 
-    const packages_json = try fetchUrl(allocator, REGISTRY_URL);
-    defer allocator.free(packages_json);
-
-    const packages = try parsePackages(allocator, packages_json);
-    defer {
-        for (packages) |pkg| {
-            allocator.free(pkg.title);
-            allocator.free(pkg.url);
-            if (pkg.description) |description| allocator.free(description);
-            if (pkg.keywords) |keywords| {
-                for (keywords) |keyword| allocator.free(keyword);
-                allocator.free(keywords);
-            }
-            if (pkg.categories) |categories| {
-                for (categories) |category| allocator.free(category);
-                allocator.free(categories);
-            }
-        }
-        allocator.free(packages);
-    }
+    const packages = try loadPackages(allocator);
+    defer freePackages(allocator, packages);
 
     const pkg = findPackage(packages, package_name) orelse {
         std.log.err("package not found in registry: {s}", .{package_name});
@@ -128,6 +121,29 @@ fn installPackage(allocator: Allocator, package_name: []const u8) !void {
 
     try copyFileAbsolute(built_binary, install_target);
     std.debug.print("installed {s} -> {s}\n", .{ package_name, install_target });
+}
+
+fn searchPackages(allocator: Allocator, query: []const u8) !void {
+    const packages = try loadPackages(allocator);
+    defer freePackages(allocator, packages);
+
+    var match_count: usize = 0;
+    for (packages) |pkg| {
+        if (!packageMatchesQuery(pkg, query)) continue;
+        match_count += 1;
+
+        std.debug.print("{s}\n", .{pkg.title});
+        if (pkg.description) |description| {
+            std.debug.print("  {s}\n", .{description});
+        }
+        std.debug.print("  {s}\n\n", .{pkg.url});
+    }
+
+    if (match_count == 0) {
+        std.debug.print("no packages found for query: {s}\n", .{query});
+    } else {
+        std.debug.print("{d} package(s) matched\n", .{match_count});
+    }
 }
 
 fn getEnvOwned(allocator: Allocator, name: []const u8) ![]u8 {
@@ -166,6 +182,29 @@ fn fetchUrl(allocator: Allocator, url: []const u8) ![]u8 {
 
     var owned = response_writer.toArrayList();
     return owned.toOwnedSlice(allocator);
+}
+
+fn loadPackages(allocator: Allocator) ![]Package {
+    const packages_json = try fetchUrl(allocator, REGISTRY_URL);
+    defer allocator.free(packages_json);
+    return parsePackages(allocator, packages_json);
+}
+
+fn freePackages(allocator: Allocator, packages: []Package) void {
+    for (packages) |pkg| {
+        allocator.free(pkg.title);
+        allocator.free(pkg.url);
+        if (pkg.description) |description| allocator.free(description);
+        if (pkg.keywords) |keywords| {
+            for (keywords) |keyword| allocator.free(keyword);
+            allocator.free(keywords);
+        }
+        if (pkg.categories) |categories| {
+            for (categories) |category| allocator.free(category);
+            allocator.free(categories);
+        }
+    }
+    allocator.free(packages);
 }
 
 fn parsePackages(allocator: Allocator, json_bytes: []const u8) ![]Package {
@@ -220,6 +259,35 @@ fn findPackage(packages: []const Package, name: []const u8) ?Package {
         if (std.mem.eql(u8, pkg.title, name)) return pkg;
     }
     return null;
+}
+
+fn packageMatchesQuery(pkg: Package, query: []const u8) bool {
+    if (containsIgnoreCase(pkg.title, query)) return true;
+    if (pkg.description) |description| {
+        if (containsIgnoreCase(description, query)) return true;
+    }
+    if (pkg.keywords) |keywords| {
+        for (keywords) |keyword| {
+            if (containsIgnoreCase(keyword, query)) return true;
+        }
+    }
+    if (pkg.categories) |categories| {
+        for (categories) |category| {
+            if (containsIgnoreCase(category, query)) return true;
+        }
+    }
+    return false;
+}
+
+fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
+    if (needle.len == 0) return true;
+    if (needle.len > haystack.len) return false;
+
+    var index: usize = 0;
+    while (index + needle.len <= haystack.len) : (index += 1) {
+        if (std.ascii.eqlIgnoreCase(haystack[index .. index + needle.len], needle)) return true;
+    }
+    return false;
 }
 
 fn packageRefFromUrl(url: []const u8) !PackageRef {
