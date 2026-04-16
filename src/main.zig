@@ -61,6 +61,16 @@ pub fn main() !void {
         return;
     }
 
+    if (std.mem.eql(u8, args[1], "remove")) {
+        if (args.len < 3) {
+            std.log.err("missing package name", .{});
+            try printUsage();
+            return error.InvalidArguments;
+        }
+        try removePackage(allocator, args[2]);
+        return;
+    }
+
     if (std.mem.eql(u8, args[1], "--help") or std.mem.eql(u8, args[1], "-h") or std.mem.eql(u8, args[1], "help")) {
         try printUsage();
         return;
@@ -78,6 +88,7 @@ fn printUsage() !void {
         \\Usage:
         \\  zub install <package>
         \\  zub search <query>
+        \\  zub remove <package>
         \\
         \\Registry:
         \\  {s}
@@ -169,6 +180,64 @@ fn searchPackages(allocator: Allocator, query: []const u8) !void {
     } else {
         std.debug.print("{d} package(s) matched\n", .{match_count});
     }
+}
+
+fn removePackage(allocator: Allocator, package_name: []const u8) !void {
+    const home = try getEnvOwned(allocator, "HOME");
+    defer allocator.free(home);
+
+    const local_bin_dir = try std.fs.path.join(allocator, &.{ home, ".local", "bin", package_name });
+    defer allocator.free(local_bin_dir);
+
+    const cache_src_dir = try std.fs.path.join(allocator, &.{ home, ".cache", "zub", "src" });
+    defer allocator.free(cache_src_dir);
+
+    var removed_any = false;
+
+    if (std.fs.accessAbsolute(local_bin_dir, .{})) |_| {
+        try std.fs.deleteFileAbsolute(local_bin_dir);
+        std.debug.print("removed binary: {s}\n", .{local_bin_dir});
+        removed_any = true;
+    } else |_| {}
+
+    var src_dir = try std.fs.openDirAbsolute(cache_src_dir, .{ .iterate = true });
+    defer src_dir.close();
+
+    var iterator = src_dir.iterate();
+    while (try iterator.next()) |entry| {
+        if (entry.kind != .directory) continue;
+        if (containsIgnoreCase(entry.name, package_name)) {
+            const full_path = try std.fs.path.join(allocator, &.{ cache_src_dir, entry.name });
+            defer allocator.free(full_path);
+            try deleteDirRecursive(allocator, full_path);
+            std.debug.print("removed source: {s}\n", .{full_path});
+            removed_any = true;
+            break;
+        }
+    }
+
+    if (!removed_any) {
+        std.log.err("package '{s}' not found", .{package_name});
+        return error.PackageNotFound;
+    }
+}
+
+fn deleteDirRecursive(allocator: Allocator, path: []const u8) !void {
+    var dir = try std.fs.openDirAbsolute(path, .{ .iterate = true });
+    defer dir.close();
+
+    var iterator = dir.iterate();
+    while (try iterator.next()) |entry| {
+        const entry_path = try std.fs.path.join(allocator, &.{ path, entry.name });
+        defer allocator.free(entry_path);
+        if (entry.kind == .directory) {
+            try deleteDirRecursive(allocator, entry_path);
+        } else {
+            try std.fs.deleteFileAbsolute(entry_path);
+        }
+    }
+
+    try std.fs.deleteDirAbsolute(path);
 }
 
 fn getEnvOwned(allocator: Allocator, name: []const u8) ![]u8 {
@@ -388,7 +457,7 @@ fn detectRequiredZigVersion(allocator: Allocator, repo_dir: []const u8) ![]u8 {
     };
     defer allocator.free(contents);
 
-    var version = extractMinimumZigVersion(contents) orelse DEFAULT_ZIG_VERSION;
+    const version = extractMinimumZigVersion(contents) orelse DEFAULT_ZIG_VERSION;
 
     if (ZIG_VERSION_MAPPING.map(version)) |mapped| {
         std.debug.print("note: Zig {s} not available, using {s} instead\n", .{ version, mapped });
